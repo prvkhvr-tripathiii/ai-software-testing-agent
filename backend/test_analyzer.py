@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from app.analysis.repository import find_python_files
 from app.analysis.ast_analyzer import analyze_python_file
 
@@ -11,7 +13,4 @@ for file in files:
 
     print(f"\nFile: {analysis['file']}")
 
-    for function in analysis["functions"]:
-        print(f"  Function: {function['name']}")
-        print(f"  Line: {function['line']}")
-        print(f"  Arguments: {function['arguments']}")
+    pprint(analysis)
