@@ -1,3 +1,7 @@
+import os
+
+from google import genai
+from google.genai import types
 from pydantic import BaseModel, Field
 
 
@@ -23,24 +27,71 @@ def generate_tests(
     coverage: dict,
 ) -> TestGenerationResponse:
 
-    tests = []
-
-    for function in analysis.get("functions", []):
-        test_name = f"test_{function['name']}"
-
-        test_code = f"""
-        
-def {test_name}():
-    # TODO: AI-generated test
-    pass
-""".strip()
-
-        tests.append(
-            GeneratedTest(
-                name=test_name,
-                code=test_code,
-                target_function=function["name"],
-            )
+    if not os.getenv("GEMINI_API_KEY"):
+        raise RuntimeError(
+            "GEMINI_API_KEY environment variable is not set."
         )
 
-    return TestGenerationResponse(tests=tests)
+    client = genai.Client()
+
+    prompt = f"""
+You are an expert Python software testing engineer.
+
+Your task is to generate high-quality pytest tests for the provided
+Python source code.
+
+Your primary goal is to improve test coverage.
+
+Prioritize:
+1. Uncovered lines.
+2. Uncovered branches.
+3. Exception paths.
+4. Edge cases.
+5. Boundary conditions.
+6. Important normal behavior.
+
+Do not generate unnecessary duplicate tests.
+
+SOURCE CODE:
+{source_code}
+
+AST ANALYSIS:
+{analysis}
+
+CURRENT COVERAGE:
+{coverage}
+
+Generate pytest tests for the source code.
+
+Requirements:
+- Use pytest.
+- Generated tests must be valid Python.
+- Import the functions/classes being tested.
+- Test actual behavior, not implementation details.
+- If a branch raises an exception, test that exception.
+- Focus especially on currently uncovered code.
+- Do not include markdown fences.
+- Return only the structured response.
+"""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=TestGenerationResponse,
+            ),
+        )
+
+        if not response.parsed:
+            raise RuntimeError(
+                "Gemini returned an empty or invalid structured response."
+            )
+
+        return response.parsed
+
+    except Exception as error:
+        raise RuntimeError(
+            f"Gemini test generation failed: {error}"
+        ) from error
