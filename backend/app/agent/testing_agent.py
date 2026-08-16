@@ -1,9 +1,10 @@
 from pathlib import Path
 
+from app.agent.failure_agent import FailureAgent
+from app.execution.test_runner import run_tests
 from app.analysis.ast_analyzer import analyze_python_file
 from app.generation.test_generator import generate_tests
 from app.generation.test_writer import write_generated_tests
-from app.execution.test_runner import run_tests
 
 
 class TestingAgent:
@@ -27,6 +28,7 @@ class TestingAgent:
 
     def __init__(self, project_path: str):
         self.project_path = Path(project_path).resolve()
+        self.failure_agent = FailureAgent()
 
     def find_python_files(self) -> list[Path]:
         """
@@ -81,38 +83,36 @@ class TestingAgent:
         """
         Run the complete AI testing pipeline.
         """
-
+    
         python_files = self.find_python_files()
-
+    
         generation_results = []
-
+    
         for file_path in python_files:
             analysis = self.analyze_file(file_path)
-
+    
             generated_tests = self.generate_tests_for_file(
                 file_path,
                 analysis,
             )
-
-            relative_path = file_path.relative_to(
-                self.project_path
-            )
-
+    
             output_file = (
                 self.project_path
                 / "tests"
                 / "generated"
                 / f"test_ai_{file_path.stem}.py"
             )
-
+    
             written_file = write_generated_tests(
                 tests=generated_tests.tests,
                 output_file=str(output_file),
             )
-
+    
             generation_results.append(
                 {
-                    "source_file": str(relative_path),
+                    "source_file": str(
+                        file_path.relative_to(self.project_path)
+                    ),
                     "generated_test_file": str(
                         Path(written_file).relative_to(
                             self.project_path
@@ -123,16 +123,50 @@ class TestingAgent:
                     ),
                 }
             )
-
-        # Run all generated tests after generation is complete.
-        test_results = run_tests(
-            str(self.project_path),
-   	    "tests/generated",
+    
+        execution_result = run_tests(
+            str(self.project_path)
         )
-
-        return {
+    
+        response = {
             "project": str(self.project_path),
             "files_analyzed": len(python_files),
             "generation": generation_results,
-            "execution": test_results.model_dump(),
+            "execution": execution_result.model_dump(),
         }
+    
+        if not execution_result.passed:
+        
+            failure_analyses = []
+    
+            for file_path in python_files:
+            
+                source_code = file_path.read_text(
+                    encoding="utf-8"
+                )
+    
+                failure_analysis = (
+                    self.failure_agent.analyze_failure(
+                        source_code=source_code,
+                        test_output=(
+                            execution_result.stdout
+                            + "\n"
+                            + execution_result.stderr
+                        ),
+                    )
+                )
+    
+                failure_analyses.append(
+                    {
+                        "source_file": str(
+                            file_path.relative_to(
+                                self.project_path
+                            )
+                        ),
+                        "analysis": failure_analysis,
+                    }
+                )
+    
+            response["failures"] = failure_analyses
+    
+        return response

@@ -8,6 +8,16 @@ class TestResult(BaseModel):
     errors: int = 0
 
 
+class FailureAnalysis(BaseModel):
+    test_name: str = ""
+    error_type: str = ""
+    error_message: str = ""
+    traceback: str = ""
+
+    explanation: str = ""
+    suggested_fix: str = ""
+
+
 class FileCoverage(BaseModel):
     file: str
     statements: int
@@ -28,6 +38,10 @@ class ExecutionResult(BaseModel):
 
     tests: TestResult
     coverage: CoverageResult
+
+    failures: list[FailureAnalysis] = Field(
+        default_factory=list
+    )
 
     stdout: str = ""
     stderr: str = ""
