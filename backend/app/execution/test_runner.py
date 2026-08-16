@@ -1,5 +1,10 @@
 import subprocess
 
+from app.execution.result_parser import (
+    parse_test_results,
+    parse_coverage_results,
+)
+
 
 def run_tests(
     project_path: str,
@@ -37,12 +42,26 @@ def run_tests(
         text=True,
     )
 
+    test_results = parse_test_results(
+        result.stdout
+    )
+    
+    coverage_results = parse_coverage_results(
+        coverage_result.stdout
+    )
+
     return {
         "command": command,
         "exit_code": result.returncode,
         "passed": result.returncode == 0,
+
+        "tests": test_results,
+
         "stdout": result.stdout,
         "stderr": result.stderr,
-        "coverage": coverage_result.stdout,
+
+        "coverage": coverage_results,
+
+        "coverage_raw": coverage_result.stdout,
         "coverage_error": coverage_result.stderr,
     }
