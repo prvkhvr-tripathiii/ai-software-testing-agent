@@ -7,4 +7,4 @@ project = "sample_projects/demo_project"
 
 result = run_tests(project)
 
-pprint(result)
+print(result.model_dump_json(indent=2))

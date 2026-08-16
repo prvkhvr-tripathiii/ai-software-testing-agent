@@ -1,5 +1,7 @@
 import subprocess
 
+from app.models.execution import ExecutionResult
+
 from app.execution.result_parser import (
     parse_test_results,
     parse_coverage_results,
@@ -50,18 +52,14 @@ def run_tests(
         coverage_result.stdout
     )
 
-    return {
-        "command": command,
-        "exit_code": result.returncode,
-        "passed": result.returncode == 0,
-
-        "tests": test_results,
-
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-
-        "coverage": coverage_results,
-
-        "coverage_raw": coverage_result.stdout,
-        "coverage_error": coverage_result.stderr,
-    }
+    return ExecutionResult(
+    command=command,
+    exit_code=result.returncode,
+    passed=result.returncode == 0,
+    tests=test_results,
+    coverage=coverage_results,
+    stdout=result.stdout,
+    stderr=result.stderr,
+    coverage_raw=coverage_result.stdout,
+    coverage_error=coverage_result.stderr,
+)

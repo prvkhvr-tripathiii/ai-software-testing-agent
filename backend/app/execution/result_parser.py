@@ -1,4 +1,9 @@
 import re
+from app.models.execution import (
+    TestResult,
+    FileCoverage,
+    CoverageResult,
+)
 
 
 def parse_test_results(stdout: str) -> dict:
@@ -19,12 +24,12 @@ def parse_test_results(stdout: str) -> dict:
     if error_match:
         errors = int(error_match.group(1))
 
-    return {
-        "passed": passed,
-        "failed": failed,
-        "errors": errors,
-        "total": passed + failed + errors,
-    }
+    return TestResult(
+        passed=passed,
+        failed=failed,
+        errors=errors,
+        total=passed + failed + errors,
+    )
 
 
 def parse_coverage_results(stdout: str) -> dict:
@@ -77,15 +82,17 @@ def parse_coverage_results(stdout: str) -> dict:
                 if value.isdigit():
                     missing_lines.append(int(value))
 
-        files.append({
-            "file": filename,
-            "statements": statements,
-            "missing": missing,
-            "coverage": coverage,
-            "missing_lines": missing_lines,
-        })
+        files.append(
+            FileCoverage(
+                file=filename,
+                statements=statements,
+                missing=missing,
+                coverage=coverage,
+                missing_lines=missing_lines,
+            )
+        )
 
-    return {
-        "total": total_coverage,
-        "files": files,
-    }
+    return CoverageResult(
+        total=total_coverage,
+        files=files,
+    )
